@@ -89,8 +89,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e0fbaf9ed578195459f21187927d1a5b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  letter: 
+  nodeCurrentLetter: 
+  rowNum: 0
+  colNum: 0
   guessState: 0
+  letterText: {fileID: 7838530286135075007}
 --- !u!1 &7838530286135075005
 GameObject:
   m_ObjectHideFlags: 0
@@ -156,7 +159,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: A
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
