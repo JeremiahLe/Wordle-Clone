@@ -15,23 +15,35 @@ public class GuessManager : MonoBehaviour
     public TextAsset SevenLetterWordList;
 
     public string currentWord;
+    public string currentGuess;
+
     public Word.LetterCount letterCount;
 
     public int guessesAllowed = 5;
     public int guessesRemaining = 5;
 
+    public int currentWordStreak = 0;
+
+    public int currentRow = -1;
+    public int currentCol = -1;
+
+    public TextMeshProUGUI currentWordStreakText;
     public TextMeshProUGUI currentWordDisplay;
-    public string currentGuess;
+
+    public Transform currentNode;
 
     public Transform nodePrefab;
     public Transform nodeParent;
     public Transform startPos;
+
     public float nodeSpacing = 2.5f;
 
     public List<Transform> nodeArray;
-    public Transform currentNode;
-    public int currentRow = -1;
-    public int currentCol = -1;
+    public List<Transform> currentRowOfNodes;
+
+    public GameObject messageBox;
+
+    bool gameOver = false;
 
     // Start is called before the first frame update
     private void Start()
@@ -44,6 +56,11 @@ public class GuessManager : MonoBehaviour
     private void OnGUI()
     {
         Event e = Event.current;
+
+        if (gameOver == true)
+        {
+            return;
+        }
 
         // Only keep track of alphabetical keycodes
         if (e.type == EventType.KeyDown && e.keyCode.ToString().Length == 1 && char.IsLetter(e.keyCode.ToString()[0]))
@@ -89,33 +106,84 @@ public class GuessManager : MonoBehaviour
     // This function checks the guesse's validity
     public void CheckGuess()
     {
+        // Do you have enough letters?
         if (currentGuess.Count() != ReturnLetterCountInt())
         {
             return;       
         }
 
+        // Did you guess the word correctly?
         if (currentGuess == currentWord)
         {
-            Debug.Log("You win!");
+            //Debug.Log("You win!");
+            gameOver = true;
+            currentWordStreak += 1;
+            currentWordStreakText.text = ($"Current Streak: {currentWordStreak}");
+            DisplayGuessResults();
+            return;
         }
 
+        // Does the word exist in the word pool?
         foreach (string word in listOfWords)
         {
             if (word.ToUpper().Trim() == currentGuess)
             {
-                Debug.Log("Incorrect Guess!");
+                //Debug.Log("Incorrect Guess!");
+                guessesRemaining -= 1;
                 DisplayGuessResults();
-                SetNewNodeAndRow();
                 return;
             }
         }
 
-        Debug.Log("Word not in word pool!");
+        messageBox.SetActive(true);
+        messageBox.GetComponent<MessageManager>().SetMessage("Word not in word pool!");
+        //Debug.Log("Word not in word pool!");  
     }
 
     // This function assigns the node state based on the guessed word
     public void DisplayGuessResults()
     {
+        currentRowOfNodes = nodeArray.Where(row => row.gameObject.GetComponent<Node>().rowNum == currentRow + 1).ToList();
+        int i = 0;
+
+        foreach(Transform node in currentRowOfNodes)
+        {
+            if (node.gameObject.GetComponent<Node>().nodeCurrentLetter == currentWord[i].ToString())
+            {
+                node.gameObject.GetComponent<Node>().PlayGuessAnimation(Node.GuessState.Correct);
+                //Debug.Log($"Letter at position {i} is correct.");
+            }
+            else if (currentWord.Contains(node.gameObject.GetComponent<Node>().nodeCurrentLetter))
+            {
+                node.gameObject.GetComponent<Node>().PlayGuessAnimation(Node.GuessState.Close);
+                //Debug.Log($"Letter at position {i} exists somewhere else.");
+            }
+            else if (!currentWord.Contains(node.gameObject.GetComponent<Node>().nodeCurrentLetter))
+            {
+                node.gameObject.GetComponent<Node>().PlayGuessAnimation(Node.GuessState.Incorrect);
+                //Debug.Log($"Letter at position {i} doesn't exist at all.");
+            }
+            i++;
+        }
+
+        // Check if game not over
+        if (guessesRemaining > 0 && gameOver == false)
+        {
+            SetNewNodeAndRow();
+        }
+        else if (guessesRemaining <= 0)
+        {
+            currentWordStreak = 0;
+            currentWordStreakText.text = ($"Current Streak: {currentWordStreak}");
+
+            messageBox.SetActive(true);
+            messageBox.GetComponent<MessageManager>().SetMessage($"Word was {currentWord}!");
+            Invoke("RestartGame", 1.0f);
+        }
+        else
+        {
+            Invoke("RestartGame", 1.0f);
+        }
     }
 
     // This function moves to the next row after an incorrect guess
@@ -158,7 +226,8 @@ public class GuessManager : MonoBehaviour
     // This function shows the current word
     public void ShowCurrentWord()
     {
-        currentWordDisplay.text += ($"{currentWord}");
+        currentWordDisplay.text = ($"Current Word:\n{currentWord}");
+        currentWordStreak = 0;
     }
 
     // This function spawns the grid of nodes for the guesses
@@ -177,7 +246,7 @@ public class GuessManager : MonoBehaviour
             }
         }
 
-        Transform firstNode = nodeArray.Where(first => first.GetComponent<Node>().rowNum == currentRow + 1&& first.GetComponent<Node>().colNum == currentCol + 1).ToList().First();
+        Transform firstNode = nodeArray.Where(first => first.GetComponent<Node>().rowNum == currentRow + 1 && first.GetComponent<Node>().colNum == currentCol + 1).ToList().First();
         currentNode = firstNode;
     }
 
@@ -216,6 +285,29 @@ public class GuessManager : MonoBehaviour
 
             default:
                 return 5;
+        }
+    }
+
+    // This function resets the game state
+    public void RestartGame()
+    {
+        currentRow = -1;
+        currentCol = -1;
+        guessesRemaining = guessesAllowed;
+        gameOver = false;
+
+        DestroyNodes();
+        GetRandomWord();
+        SpawnNodes();
+    }
+
+    // This function clears the current nodeArray to create a new one
+    public void DestroyNodes()
+    {
+        foreach (Transform node in nodeArray.ToArray())
+        {
+            nodeArray.Remove(node);
+            Destroy(node.gameObject);
         }
     }
 }
